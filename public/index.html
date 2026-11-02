@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMS - API connection test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    input, button { font: inherit; padding: .4rem .6rem; margin: .15rem 0; }
+    pre { background: #f4f4f5; padding: .75rem; border-radius: 6px; overflow: auto; }
+    .ok { color: #15803d; } .bad { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>LMS - API connection test</h1>
+  <p>Use this page to prove that the frontend, API and database are connected. Replace it with your own pages later.</p>
+
+  <h2>1. Server</h2>
+  <p id="health">Checking...</p>
+
+  <h2>2. Login (database + JWT)</h2>
+  <form id="login">
+    <input id="email" value="student@lms.test" size="26"> <input id="password" type="password" value="Password123!">
+    <button>Log in</button> <button type="button" id="logout">Log out</button>
+  </form>
+  <p id="who"></p>
+
+  <h2>3. A protected call</h2>
+  <button id="courses">Load my courses</button>
+  <pre id="out">Press the button after logging in.</pre>
+
+  <script src="api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const show = (el, text, ok) => { el.textContent = text; el.className = ok ? 'ok' : 'bad'; };
+
+    fetch((window.LMS_API_BASE || '') + '/api/health').then(r => r.json())
+      .then(j => show($('health'), 'OK - ' + j.message, true))
+      .catch(() => show($('health'), 'Cannot reach the API. Start it with: npm run dev', false));
+
+    const refreshWho = () => {
+      const u = LMS.currentUser();
+      $('who').textContent = u ? 'Logged in as ' + u.first_name + ' ' + u.last_name + ' (' + u.role + ')' : 'Not logged in.';
+    };
+    refreshWho();
+
+    $('login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try { await LMS.login($('email').value, $('password').value); refreshWho(); }
+      catch (err) { $('who').textContent = 'Login failed: ' + err.message; $('who').className = 'bad'; }
+    });
+    $('logout').addEventListener('click', () => { LMS.logout(); refreshWho(); });
+    $('courses').addEventListener('click', async () => {
+      try { $('out').textContent = JSON.stringify(await LMS.get('/courses'), null, 2); }
+      catch (err) { $('out').textContent = 'Error ' + err.status + ': ' + err.message; }
+    });
+  </script>
+</body>
+</html>
